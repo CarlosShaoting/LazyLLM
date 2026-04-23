@@ -1,6 +1,8 @@
 import hashlib
 import os
 import shutil
+import subprocess
+import tempfile
 
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -345,3 +347,74 @@ def _get_default_db_config(db_name: str):
 def _orm_to_dict(obj) -> Dict[str, Any]:
     '''convert ORM object to dict'''
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+
+def post_process_video_audio_for_llm(
+    nodes: List[DocNode],
+    output_dir: Optional[str] = None,
+    audio_file_key: str = 'audio_file_path',
+    video_file_key: str = 'video_file_path',
+    start_key: str = 'start_time',
+    end_key: str = 'end_time',
+    clip_key: str = 'clip_path',
+) -> List[DocNode]:
+    processed_nodes = []
+    target_dir = output_dir or os.path.join(config['temp_dir'], 'rag_video_clips')
+    os.makedirs(target_dir, exist_ok=True)
+
+    for node in nodes:
+        file_path = (
+            node.metadata.get(video_file_key)
+            or node.metadata.get(audio_file_key)
+            or node.global_metadata.get(RAG_DOC_PATH)
+      )
+        start_time = node.metadata.get(start_key)
+        end_time = node.metadata.get(end_key)
+
+        # end_time == float('inf') when time segment is false.
+        if not file_path or start_time is None or end_time is None or end_time == float('inf'):
+            processed_nodes.append(node)
+            continue
+
+        if not os.path.isfile(file_path):
+            processed_nodes.append(node)
+            continue
+
+        if end_time <= start_time:
+            processed_nodes.append(node)
+            continue
+
+        suffix = os.path.splitext(file_path)[1] or '.mp4'
+        clip_file = tempfile.NamedTemporaryFile(
+            prefix='rag_video_clip_',
+            suffix=suffix,
+            dir=target_dir,
+            delete=False,
+        )
+        clip_path = clip_file.name
+        clip_file.close()
+
+        cmd = [
+            'ffmpeg',
+            '-y',
+            '-ss',
+            str(start_time),
+            '-to',
+            str(end_time),
+            '-i',
+            file_path,
+            '-c',
+            'copy',
+            clip_path,
+        ]
+
+        try:
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            if os.path.exists(clip_path):
+                os.remove(clip_path)
+            processed_nodes.append(node)
+            continue
+
+        processed_nodes.append(node.copy(metadata={clip_key: clip_path}))
+
+    return processed_nodes

@@ -6,7 +6,7 @@ check_dependency_by_group('rag')
 from .document import Document
 from .doc_service import DocServer
 from .graph_document import GraphDocument, UrlGraphDocument
-from .retriever import Retriever, TempDocRetriever, ContextRetriever, WeightedRetriever, PriorityRetriever
+from .retriever import Retriever, ImageRetriever, TempDocRetriever, ContextRetriever, WeightedRetriever, PriorityRetriever
 from .graph_retriever import GraphRetriever
 from .rerank import Reranker, register_reranker
 from .transform import (SentenceSplitter, LLMParser, NodeTransform, TransformArgs, AdaptiveTransform,
@@ -24,6 +24,7 @@ from .index_base import IndexBase
 from .store import LazyLLMStoreBase
 from .doc_to_db import SchemaExtractor
 from .query_enh_ac import QueryEnhACProcessor
+from .utils import post_process_video_audio_for_llm
 
 
 
@@ -37,6 +38,7 @@ __all__ = [
     'UrlGraphDocument',
     'Reranker',
     'Retriever',
+    'ImageRetriever',
     'GraphRetriever',
     'TempDocRetriever',
     'ContextRetriever',
@@ -82,4 +84,5 @@ __all__ = [
     'JSONLSplitter',
     'SchemaExtractor',
     'QueryEnhACProcessor',
+    'post_process_video_audio_for_llm',
 ]
