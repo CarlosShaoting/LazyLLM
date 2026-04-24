@@ -1,5 +1,6 @@
 from typing import List, Optional, Union, Dict, Set, Callable, Any
 from lazyllm import ModuleBase, once_wrapper, LOG, TempPathGenerator, parallel
+from lazyllm.components.utils.file_operate import _image_to_base64
 
 from .doc_node import DocNode
 from enum import Enum
@@ -196,6 +197,72 @@ class Retriever(_RetrieverBase, _PostProcess):
             if nodes and self._target and self._target != nodes[0]._group:
                 nodes = doc.find(self._target)(nodes)
             all_nodes.extend(nodes)
+        return self._post_process(all_nodes)
+
+
+class ImageRetriever(Retriever):
+    # to do: test this class
+    def __init__(self, doc: object, group_name: str, similarity: Optional[str] = None,
+                 similarity_cut_off: Union[float, Dict[str, float]] = float('-inf'), index: str = 'default',
+                 topk: int = 6, embed_keys: Optional[List[str]] = None, target: Optional[str] = None,
+                 output_format: Optional[str] = None, join: Union[bool, str] = False,
+                 weight: Optional[float] = None, priority: Optional[_RetrieverBase.Priority] = None, **kwargs):
+        super().__init__(doc=doc, group_name=group_name, similarity=similarity,
+                         similarity_cut_off=similarity_cut_off, index=index, topk=topk,
+                         embed_keys=embed_keys, target=target, output_format=output_format, join=join,
+                         weight=weight, priority=priority, **kwargs)
+        if self._mode != 'embedding':
+            raise ValueError('ImageRetriever only supports embedding similarity')
+
+    def _build_image_query_embedding(self, embed: Dict[str, Callable], embed_keys: List[str], image_path: str):
+        image_base64, mime = _image_to_base64(image_path)
+        image_payload = [f'data:{mime};base64,{image_base64}']
+        query_embedding = {}
+        for key in embed_keys:
+            emb = embed[key](image_payload, modality='image')
+            query_embedding[key] = emb[0]
+        return query_embedding
+
+    def forward(
+            self, query: str, filters: Optional[Dict[str, Union[str, int, List, Set]]] = None,
+            **kwargs
+    ) -> Union[List[DocNode], str]:
+        self._lazy_init()
+        all_nodes: List[DocNode] = []
+        if self._per_doc_embed_keys and len(self._embed_keys) != len(self._docs):
+            raise RuntimeError('Per-doc embed_keys misaligned with docs after lazy init')
+
+        for idx, doc in enumerate(self._docs):
+            if isinstance(doc, UrlDocument):
+                raise NotImplementedError('ImageRetriever does not support UrlDocument currently')
+
+            embed_keys = self._embed_keys[idx] if self._per_doc_embed_keys else self._embed_keys
+            store = doc._impl._store
+            embed_keys = store._validate_query_params(self._group_name, self._similarity, embed_keys)
+            query_embedding = self._build_image_query_embedding(doc._impl.embed, embed_keys, query)
+
+            segments = []
+            for embed_key in embed_keys:
+                search_res = store.impl.search(
+                    collection_name=store._gen_collection_name(self._group_name),
+                    query=query,
+                    query_embedding=query_embedding[embed_key],
+                    topk=self._topk,
+                    filters=filters,
+                    embed_key=embed_key,
+                    **self._similarity_kw,
+                    **kwargs,
+                )
+                if search_res:
+                    sim_cut_off = self._similarity_cut_off if isinstance(self._similarity_cut_off, float) \
+                        else self._similarity_cut_off[embed_key]
+                    segments.extend([res for res in search_res if res.get('score', 0) >= sim_cut_off])
+
+            nodes = [store._deserialize_node(segment, segment.get('score', 0)) for segment in segments]
+            if nodes and self._target and self._target != nodes[0]._group:
+                nodes = doc.find(self._target)(nodes)
+            all_nodes.extend(nodes)
+
         return self._post_process(all_nodes)
 
 

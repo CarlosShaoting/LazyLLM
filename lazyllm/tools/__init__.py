@@ -3,8 +3,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     # flake8: noqa: E401
     from .rag import (Document, GraphDocument, UrlGraphDocument, Reranker, Retriever, TempDocRetriever,
-                    GraphRetriever, SentenceSplitter, LLMParser)
+                    GraphRetriever, SentenceSplitter, LLMParser, DocServer)
     from .webpages import WebModule
+    from .fs import (LazyLLMFSBase, CloudFSBufferedFile, CloudFsWatchdog, FS, dynamic_fs_config,
+                     FeishuFS, ConfluenceFS, NotionFS, GoogleDriveFS, OneDriveFS, YuqueFS, OnesFS, S3FS,
+                     ObsidianFS)
     from .agent import (
         ToolManager,
         FunctionCall,
@@ -16,7 +19,9 @@ if TYPE_CHECKING:
         ReWOOAgent,
         ModuleTool,
         SkillManager,
+        install_skill,
     )
+    from .sandbox import LazyLLMSandboxBase, DummySandbox, SandboxFusion
     from .classifier import IntentClassifier
     from .sql import SqlManager, MongoDBManager, DBResult, DBStatus, DBManager
     from .sql_call import SqlCall
@@ -30,6 +35,8 @@ if TYPE_CHECKING:
     from .http_request import HttpRequest, HttpExecutorResponse
     from .data import data_register
     from .review import get_errors, ChineseCorrector
+    from .git import (LazyLLMGitBase, PrInfo, ReviewCommentInfo, Git,
+                      GitHub, GitLab, Gitee, GitCode)
 
 
 def __getattr__(name: str):
@@ -56,7 +63,8 @@ _SUBMOD_MAP = {
         'Retriever',
         'GraphRetriever',
         'LLMParser',
-        'SentenceSplitter'
+        'SentenceSplitter',
+        'DocServer',
     ],
     'webpages': ['WebModule'],
     'agent': [
@@ -70,6 +78,12 @@ _SUBMOD_MAP = {
         'PlanAndSolveAgent',
         'ReWOOAgent',
         'SkillManager',
+        'install_skill',
+    ],
+    'sandbox': [
+        'LazyLLMSandboxBase',
+        'DummySandbox',
+        'SandboxFusion'
     ],
     'classifier': ['IntentClassifier'],
     'sql': [
@@ -109,6 +123,33 @@ _SUBMOD_MAP = {
     'review': [
         'get_errors',
         'ChineseCorrector'
+    ],
+    'git': [
+        'LazyLLMGitBase',
+        'PrInfo',
+        'ReviewCommentInfo',
+        'Git',
+        'GitHub',
+        'GitLab',
+        'Gitee',
+        'GitCode',
+        'review',
+    ],
+    'fs': [
+        'LazyLLMFSBase',
+        'CloudFSBufferedFile',
+        'CloudFsWatchdog',
+        'FS',
+        'dynamic_fs_config',
+        'FeishuFS',
+        'ConfluenceFS',
+        'NotionFS',
+        'GoogleDriveFS',
+        'OneDriveFS',
+        'YuqueFS',
+        'OnesFS',
+        'S3FS',
+        'ObsidianFS',
     ],
 }
 _SUBMOD_MAP_REVERSE = {v: k for k, vs in _SUBMOD_MAP.items() for v in vs}
