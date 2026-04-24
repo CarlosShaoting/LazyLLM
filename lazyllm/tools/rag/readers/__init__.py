@@ -13,6 +13,8 @@ from .audioReader import AudioReader
 from .videoAudioReader import VideoAudioReader
 from .mineru_pdf_reader import MineruPDFReader
 from .paddleocr_pdf_reader import PaddleOCRPDFReader
+from .videoFrameReader import VideoFrameReader
+from .imageEmbReader import ImageEmbReader
 
 __all__ = [
     'ReaderBase',
@@ -33,4 +35,6 @@ __all__ = [
     'VideoAudioReader',
     'MineruPDFReader',
     'PaddleOCRPDFReader',
+    'VideoFrameReader',
+    'ImageEmbReader'
 ]

@@ -6,9 +6,14 @@ from .readerBase import LazyLLMReaderBase
 from ..doc_node import DocNode
 
 class VideoAudioReader(LazyLLMReaderBase):
-    def __init__(self, model_version: str = 'base', return_trace: bool = True) -> None:
+    def __init__(
+        self, model_version: str = 'base', return_trace: bool = True,
+        time_segment: bool = False, time_interval: int = 15
+    ) -> None:
         super().__init__(return_trace=return_trace)
         self._model_version = model_version
+        self._time_segment = time_segment
+        self._time_interval = time_interval
 
         try:
             import whisper
@@ -20,7 +25,7 @@ class VideoAudioReader(LazyLLMReaderBase):
         self._parser_config = {'model': model}
 
     def _load_data(
-        self, file: Path, time_segment: bool = False,
+        self, file: Path,
         fs: Optional['fsspec.AbstractFileSystem'] = None
     ) -> List[DocNode]:
 
@@ -51,20 +56,9 @@ class VideoAudioReader(LazyLLMReaderBase):
 
         model = cast(whisper.Whisper, self._parser_config['model'])
 
-        if time_segment:
+        if self._time_segment:
             result = model.transcribe(str(file), word_timestamps=True)
-            nodes = []
-            for segment in result['segments']:
-                metadata = {}
-                text = segment['text']
-                metadata['start_time'] = segment['start']
-                metadata['end_time'] = segment['end']
-                metadata['audio_file_path'] = str(file)
-                if video_input:
-                    metadata['video_file_path'] = str(video_file_path)
-                node = DocNode(text=text, metadata=metadata)
-                nodes.append(node)
-            return nodes
+            return self._merge_segments(result['segments'], file, video_input, video_file_path if video_input else None)
         else:
             result = model.transcribe(str(file))
             transcript = result['text']
@@ -74,5 +68,51 @@ class VideoAudioReader(LazyLLMReaderBase):
             # from start to end
             metadata['audio_file_path'] = str(file)
             if video_input:
-                    metadata['video_file_path'] = str(video_file_path)
+                metadata['video_file_path'] = str(video_file_path)
             return [DocNode(text=transcript, metadata=metadata)]
+
+    def _merge_segments(
+            self, segments, file: Path, video_input: bool = False,
+            video_file_path: Optional[Path] = None
+    ) -> List[DocNode]:
+
+        nodes = []
+        merged_text = []
+        merged_start = None
+        merged_end = None
+
+        def _build_node(start_time, end_time, texts):
+            metadata = {
+                'start_time': start_time,
+                'end_time': end_time,
+                'audio_file_path': str(file),
+            }
+            if video_input and video_file_path is not None:
+                metadata['video_file_path'] = str(video_file_path)
+            return DocNode(text=''.join(texts), metadata=metadata)
+
+        for segment in segments:
+            start_time = segment['start']
+            end_time = segment['end']
+            text = segment['text']
+
+            if merged_start is None:
+                merged_start = start_time
+                merged_end = end_time
+                merged_text.append(text)
+                continue
+
+            if end_time - merged_start < self._time_interval:
+                merged_end = end_time
+                merged_text.append(text)
+                continue
+
+            nodes.append(_build_node(merged_start, merged_end, merged_text))
+            merged_start = start_time
+            merged_end = end_time
+            merged_text = [text]
+
+        if merged_start is not None:
+            nodes.append(_build_node(merged_start, merged_end, merged_text))
+
+        return nodes

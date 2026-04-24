@@ -31,8 +31,8 @@ class AudioReader(LazyLLMReaderBase):
             audio_b64 = base64.b64encode(f.read()).decode('utf-8')
 
         result = self._model({
-            "inputs": "",
-            "audio": f'data:{mime_type};base64,{audio_b64}'
-            })
+            'inputs': '',
+            'audio': f'data:{mime_type};base64,{audio_b64}'
+        })
         transcript = result['text'] if isinstance(result, dict) else result
         return [DocNode(text=transcript)]

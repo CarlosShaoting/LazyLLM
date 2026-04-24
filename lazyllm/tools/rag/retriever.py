@@ -201,6 +201,7 @@ class Retriever(_RetrieverBase, _PostProcess):
 
 
 class ImageRetriever(Retriever):
+    # to do: test this class
     def __init__(self, doc: object, group_name: str, similarity: Optional[str] = None,
                  similarity_cut_off: Union[float, Dict[str, float]] = float('-inf'), index: str = 'default',
                  topk: int = 6, embed_keys: Optional[List[str]] = None, target: Optional[str] = None,

@@ -2,7 +2,6 @@ import hashlib
 import os
 import shutil
 import subprocess
-import tempfile
 
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -366,7 +365,7 @@ def post_process_video_audio_for_llm(
             node.metadata.get(video_file_key)
             or node.metadata.get(audio_file_key)
             or node.global_metadata.get(RAG_DOC_PATH)
-      )
+        )
         start_time = node.metadata.get(start_key)
         end_time = node.metadata.get(end_key)
 
@@ -384,14 +383,10 @@ def post_process_video_audio_for_llm(
             continue
 
         suffix = os.path.splitext(file_path)[1] or '.mp4'
-        clip_file = tempfile.NamedTemporaryFile(
-            prefix='rag_video_clip_',
-            suffix=suffix,
-            dir=target_dir,
-            delete=False,
-        )
-        clip_path = clip_file.name
-        clip_file.close()
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+
+        clip_filename = f'rag_clip_{int(start_time)}_{int(end_time)}_{base_name}{suffix}'
+        clip_path = os.path.join(target_dir, clip_filename)
 
         cmd = [
             'ffmpeg',
