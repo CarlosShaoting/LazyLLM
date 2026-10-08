@@ -22,7 +22,6 @@ class SiliconFlowChat(OnlineChatModuleBase, FileHandlerBase):
         http_map={
             429: ModelFailureCode.RATE_LIMITED,
             503: ModelFailureCode.PROVIDER_OVERLOADED,
-            504: ModelFailureCode.PROVIDER_OVERLOADED,
         },
         error_at_top_level=True,
     )

@@ -456,6 +456,9 @@ def test_http_status_survives_error_body_transport_failure():
     (LazyLLMOnlineChatModuleBase, 429, '{"error":{}}', ModelFailureCode.RATE_LIMITED),
     (LazyLLMOnlineChatModuleBase, 500, '{"error":{}}', ModelFailureCode.PROVIDER_INTERNAL_ERROR),
     (LazyLLMOnlineChatModuleBase, 503, '{"error":{}}', ModelFailureCode.SERVICE_UNAVAILABLE),
+    (SiliconFlowChat, 504, '{"error":{}}', ModelFailureCode.REQUEST_TIMEOUT),
+    (SiliconFlowChat, 503, '{"error":{}}', ModelFailureCode.PROVIDER_OVERLOADED),
+    (SiliconFlowChat, 429, '{"error":{}}', ModelFailureCode.RATE_LIMITED),
     (LazyLLMOnlineChatModuleBase, 402, '{"error":{}}', ModelFailureCode.PROVIDER_REJECTED),
 ])
 def test_provider_http_mapping_uses_supplier_source(monkeypatch, module_cls, status, body, expected):
